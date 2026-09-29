@@ -109,7 +109,6 @@ window.addCart=id=>{const p=products.find(x=>x.id===id);if(!p||Number(p.stock)<=
 window.changeQty=(id,delta)=>{const x=cart.find(i=>i.id===id);if(!x)return;x.qty+=delta;if(x.qty<=0)cart=cart.filter(i=>i.id!==id);const p=products.find(p=>p.id===id);if(x&&p&&x.qty>p.stock)x.qty=p.stock;renderCart()};
 function renderCart(){const el=$("#cartRows");if(!el)return;el.innerHTML=cart.length?cart.map(x=>`<div class="cart-row"><div>${x.name}<br><span class="muted">${money(x.price)} × ${x.qty}</span></div><div class="qty"><button onclick='window.changeQty("${x.id}",-1)'>−</button><b>${x.qty}</b><button onclick='window.changeQty("${x.id}",1)'>+</button></div><b>${money(x.price*x.qty)}</b></div>`).join(""):`<div class="empty">Keranjang kosong.</div>`;const total=cart.reduce((a,x)=>a+x.price*x.qty,0);$("#cartTotal").textContent=money(total)}
 async function checkout(){
-async function checkout(){
   if(!cart.length){
     return toast("Keranjang kosong");
   }
