@@ -144,9 +144,41 @@ function financeView(){
 }
 function expenseModal(){
   $("#modalRoot").innerHTML=`<div class="modal"><div class="modal-box"><div class="modal-head"><h2>Tambah Pengeluaran</h2><button class="close" onclick="closeModal()">✕</button></div><form id="expenseForm"><div class="form-grid"><div class="form-group"><label>Tanggal</label><input name="date" type="date" value="${todayISO()}" required></div><div class="form-group"><label>Kategori</label><input name="category" required placeholder="Listrik / Bahan / Operasional"></div><div class="form-group"><label>Jumlah</label><input name="amount" type="number" min="0" required></div><div class="form-group"><label>Keterangan</label><input name="description"></div></div><div class="modal-actions"><button type="button" class="secondary-btn" onclick="closeModal()">Batal</button><button class="primary-btn">Simpan</button></div></form></div></div>`;
-  $("#expenseForm").onsubmit=async e=>{e.preventDefault();const f=new FormData(e.target);await addDoc(collection(db,"expenses"),{date:f.get("date"),category:f.get("category"),amount:Number(f.get("amount")),description:f.get("description"),createdAt:serverTimestamp()});closeModal();await loadAll();financeView();toast("Pengeluaran tersimpan");}
-}
+  $("#expenseForm").onsubmit = async e => {
+  e.preventDefault();
 
+  try {
+    const f = new FormData(e.target);
+
+    const data = {
+      date: f.get("date"),
+      category: f.get("category"),
+      amount: Number(f.get("amount")),
+      description: f.get("description") || "",
+      createdAt: serverTimestamp()
+    };
+
+    console.log("Data pengeluaran:", data);
+
+    await addDoc(collection(db, "expenses"), data);
+
+    closeModal();
+    await loadAll();
+    financeView();
+
+    toast("Pengeluaran tersimpan");
+
+  } catch (err) {
+
+    console.error("ERROR PENGELUARAN:", err);
+
+    alert(
+      "Pengeluaran gagal disimpan.\n\n" +
+      "Kode error: " + (err.code || "tidak diketahui") +
+      "\nPesan: " + err.message
+    );
+  }
+};
 function reportsView(){
   const rev=sales.reduce((a,s)=>a+Number(s.total||0),0), cost=sales.reduce((a,s)=>a+(s.items||[]).reduce((b,i)=>b+Number(i.costPrice||0)*Number(i.qty||0),0),0), exp=expenses.reduce((a,e)=>a+Number(e.amount||0),0);
   $("#pageContent").innerHTML=`<div class="grid cards"><div class="card"><div class="stat-label">Penjualan</div><div class="stat-value">${money(rev)}</div></div><div class="card"><div class="stat-label">Estimasi HPP</div><div class="stat-value">${money(cost)}</div></div><div class="card"><div class="stat-label">Pengeluaran</div><div class="stat-value">${money(exp)}</div></div><div class="card"><div class="stat-label">Laba Kotor*</div><div class="stat-value">${money(rev-cost-exp)}</div></div></div><div class="panel" style="margin-top:18px"><p class="muted">*HPP pada transaksi lama belum otomatis tersimpan jika produk belum memiliki data costPrice pada saat transaksi. Versi lanjutan dapat menyimpan snapshot HPP setiap penjualan.</p><h2>Ringkasan Produk</h2><div class="table-wrap"><table><thead><tr><th>Produk</th><th>Harga Jual</th><th>Modal</th><th>Margin/Unit</th><th>Stok</th></tr></thead><tbody>${products.map(p=>`<tr><td>${p.name}</td><td>${money(p.sellingPrice)}</td><td>${money(p.costPrice)}</td><td>${money(Number(p.sellingPrice||0)-Number(p.costPrice||0))}</td><td>${p.stock||0}</td></tr>`).join("")}</tbody></table></div></div>`;
