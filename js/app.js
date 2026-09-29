@@ -112,7 +112,20 @@ async function checkout(){
   if(!cart.length)return toast("Keranjang kosong");
   const total=cart.reduce((a,x)=>a+x.price*x.qty,0);
   const invoice="TRX-"+Date.now();
-  await addDoc(collection(db,"sales"),{invoice,date:todayISO(),total,paymentMethod:$("#paymentMethod").value,items:cart.map(x=>({productId:x.id,name:x.name,qty:x.qty,price:x.price})),createdAt:serverTimestamp()});
+  await addDoc(collection(db,"sales"),{invoice,date:todayISO(),total,paymentMethod:$("#paymentMethod").value,items: cart.map(x => {
+  const p = products.find(p => p.id === x.id);
+  const costPrice = Number(p?.costPrice || 0);
+
+  return {
+    productId: x.id,
+    name: x.name,
+    qty: x.qty,
+    price: x.price,
+    costPrice: costPrice,
+    subtotal: x.price * x.qty,
+    hpp: costPrice * x.qty
+  };
+}),createdAt:serverTimestamp()});
   for(const x of cart){const p=products.find(p=>p.id===x.id);await updateDoc(doc(db,"products",x.id),{stock:Number(p.stock||0)-x.qty,updatedAt:serverTimestamp()});await addDoc(collection(db,"stock_movements"),{productId:x.id,type:"SALE",qty:-x.qty,reference:invoice,date:todayISO(),createdAt:serverTimestamp()});}
   cart=[];await loadAll();posView();toast("Transaksi berhasil: "+invoice);
 }
