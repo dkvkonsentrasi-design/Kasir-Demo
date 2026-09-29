@@ -109,25 +109,62 @@ window.addCart=id=>{const p=products.find(x=>x.id===id);if(!p||Number(p.stock)<=
 window.changeQty=(id,delta)=>{const x=cart.find(i=>i.id===id);if(!x)return;x.qty+=delta;if(x.qty<=0)cart=cart.filter(i=>i.id!==id);const p=products.find(p=>p.id===id);if(x&&p&&x.qty>p.stock)x.qty=p.stock;renderCart()};
 function renderCart(){const el=$("#cartRows");if(!el)return;el.innerHTML=cart.length?cart.map(x=>`<div class="cart-row"><div>${x.name}<br><span class="muted">${money(x.price)} × ${x.qty}</span></div><div class="qty"><button onclick='window.changeQty("${x.id}",-1)'>−</button><b>${x.qty}</b><button onclick='window.changeQty("${x.id}",1)'>+</button></div><b>${money(x.price*x.qty)}</b></div>`).join(""):`<div class="empty">Keranjang kosong.</div>`;const total=cart.reduce((a,x)=>a+x.price*x.qty,0);$("#cartTotal").textContent=money(total)}
 async function checkout(){
-  if(!cart.length)return toast("Keranjang kosong");
-  const total=cart.reduce((a,x)=>a+x.price*x.qty,0);
-  const invoice="TRX-"+Date.now();
-  await addDoc(collection(db,"sales"),{invoice,date:todayISO(),total,paymentMethod:$("#paymentMethod").value,items: cart.map(x => {
-  const p = products.find(p => p.id === x.id);
-  const costPrice = Number(p?.costPrice || 0);
+async function checkout(){
+  if(!cart.length){
+    return toast("Keranjang kosong");
+  }
 
-  return {
-    productId: x.id,
-    name: x.name,
-    qty: x.qty,
-    price: x.price,
-    costPrice: costPrice,
-    subtotal: x.price * x.qty,
-    hpp: costPrice * x.qty
-  };
-}),createdAt:serverTimestamp()});
-  for(const x of cart){const p=products.find(p=>p.id===x.id);await updateDoc(doc(db,"products",x.id),{stock:Number(p.stock||0)-x.qty,updatedAt:serverTimestamp()});await addDoc(collection(db,"stock_movements"),{productId:x.id,type:"SALE",qty:-x.qty,reference:invoice,date:todayISO(),createdAt:serverTimestamp()});}
-  cart=[];await loadAll();posView();toast("Transaksi berhasil: "+invoice);
+  const total = cart.reduce((a,x)=>a + x.price * x.qty, 0);
+  const invoice = "TRX-" + Date.now();
+
+  const items = cart.map(x => {
+    const product = products.find(p => p.id === x.id);
+    const costPrice = Number(product?.costPrice || 0);
+
+    return {
+      productId: x.id,
+      name: x.name,
+      qty: x.qty,
+      price: x.price,
+      costPrice: costPrice,
+      subtotal: x.price * x.qty,
+      hpp: costPrice * x.qty
+    };
+  });
+
+  await addDoc(collection(db, "sales"), {
+    invoice: invoice,
+    date: todayISO(),
+    total: total,
+    paymentMethod: $("#paymentMethod").value,
+    items: items,
+    createdAt: serverTimestamp()
+  });
+
+  for(const x of cart){
+    const product = products.find(p => p.id === x.id);
+
+    await updateDoc(doc(db, "products", x.id), {
+      stock: Number(product.stock || 0) - x.qty,
+      updatedAt: serverTimestamp()
+    });
+
+    await addDoc(collection(db, "stock_movements"), {
+      productId: x.id,
+      type: "SALE",
+      qty: -x.qty,
+      reference: invoice,
+      date: todayISO(),
+      createdAt: serverTimestamp()
+    });
+  }
+
+  cart = [];
+
+  await loadAll();
+  posView();
+
+  toast("Transaksi berhasil: " + invoice);
 }
 
 function inventoryView(){
